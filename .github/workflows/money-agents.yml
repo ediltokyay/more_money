@@ -1,0 +1,120 @@
+# Para ajanlari — haftalik otonom arastirma turu.
+#
+# Saglayici merdiveni:
+#   1. CURSOR_API_KEY varsa   -> Cursor CLI (uyelik havuzu; arastirma composer-2.5, denetim cursor-grok-4.5-high)
+#   2. MONEY_LLM_API_KEY varsa -> OpenAI / Anthropic / uyumlu uc (API faturasi)
+#   3. Hicbiri yoksa           -> kuru calisma, PR acilmaz
+name: money-agents
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # her pazartesi 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      ideas:
+        description: 'Kasif kac fikir uretsin'
+        default: '12'
+      research:
+        description: 'Kac fikir derin arastirilsin'
+        default: '5'
+      force_new:
+        description: 'WIP kilidini ac (acik pilot olsa bile yeni fikir onaya ciksin)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: money-agents
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  arastir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Testler (kapilar calisiyor mu)
+        run: npm test
+
+      - name: Saglayici sec
+        id: saglayici
+        env:
+          CURSOR: ${{ secrets.CURSOR_API_KEY }}
+          API: ${{ secrets.MONEY_LLM_API_KEY }}
+        run: |
+          if [ -n "$CURSOR" ]; then echo "tip=cursor" >> "$GITHUB_OUTPUT"
+          elif [ -n "$API" ]; then echo "tip=api" >> "$GITHUB_OUTPUT"
+          else echo "tip=kuru" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Cursor CLI kur
+        if: steps.saglayici.outputs.tip == 'cursor'
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Tur — Cursor havuzu
+        if: steps.saglayici.outputs.tip == 'cursor'
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          MONEY_LLM_PROVIDER: cursor
+          MONEY_CURSOR_MODE: argv
+        run: |
+          node run.mjs \
+            --ideas "${{ inputs.ideas || 12 }}" \
+            --research "${{ inputs.research || 5 }}" \
+            ${{ inputs.force_new && '--force-new' || '' }}
+
+      - name: Tur — API saglayici
+        if: steps.saglayici.outputs.tip == 'api'
+        env:
+          MONEY_LLM_API_KEY: ${{ secrets.MONEY_LLM_API_KEY }}
+          MONEY_LLM_PROVIDER: ${{ vars.MONEY_LLM_PROVIDER || 'openai' }}
+          MONEY_LLM_MODEL: ${{ vars.MONEY_LLM_MODEL || 'gpt-4o-mini' }}
+          MONEY_AUDIT_MODEL: ${{ vars.MONEY_AUDIT_MODEL || '' }}
+          MONEY_LLM_BASE_URL: ${{ vars.MONEY_LLM_BASE_URL || '' }}
+        run: |
+          node run.mjs \
+            --ideas "${{ inputs.ideas || 12 }}" \
+            --research "${{ inputs.research || 5 }}" \
+            ${{ inputs.force_new && '--force-new' || '' }}
+
+      - name: Kuru calisma (anahtar yok)
+        if: steps.saglayici.outputs.tip == 'kuru'
+        run: |
+          echo "::warning::CURSOR_API_KEY / MONEY_LLM_API_KEY yok — fixture ile kuru calisiliyor, PR acilmayacak."
+          node run.mjs --dry-run
+
+      - name: Rapor PR
+        if: steps.saglayici.outputs.tip != 'kuru'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain data reports)" ]; then
+            echo "degisiklik yok, PR acilmiyor"; exit 0
+          fi
+          TARIH=$(date -u +%Y-%m-%d)
+          DAL="para/rapor-$TARIH-${GITHUB_RUN_ID}"
+          git config user.name "money-agents"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "$DAL"
+          git add data reports
+          git commit -m "para: $TARIH haftalik arastirma raporu"
+          git push -u origin "$DAL"
+          RAPOR=$(ls -t reports/*.md | grep -v ornek-rapor | head -1)
+          gh pr create \
+            --title "Para raporu $TARIH" \
+            --body "$(head -c 60000 "$RAPOR")" \
+            --base main \
+            --head "$DAL"

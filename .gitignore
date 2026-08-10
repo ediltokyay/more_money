@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+.tmp-*
+_tmp_*
+
+# Kuru çalışma çıktıları (gerçek defter/raporlar commit edilir)
+data/ledger.dry.json
+reports/kuru-*.md

@@ -1,0 +1,92 @@
+{
+  "operator": {
+    "pazarlar": ["TR", "global-EN"],
+    "diller": ["tr", "en"],
+    "beceriler": [
+      "web frontend: JavaScript, HTML/CSS, three.js/WebGL",
+      "Node.js ile arac ve otomasyon yazimi",
+      "3D varlik pipeline: model/texture format donusumu",
+      "otonom kod ajanlarini CLI uzerinden isletme",
+      "temel ses/muzik uretimi ve dijital dagitim"
+    ],
+    "mevcutIsler": [],
+    "varlikKullanimi": "serbest",
+    "haftalikSaat": 8,
+    "baslangicSermayesiUSD": 50,
+    "aylikSabitGiderTavaniUSD": 20,
+    "operatorKesintiNotu": "Operator haftalarca erisilemez olabilir. Is, kimse dokunmadan ayakta kalmali ve para uretmeye devam etmeli.",
+    "yasakKategoriler": [
+      "kripto spekulasyon / token / airdrop",
+      "kumar, bahis, sans oyunu",
+      "MLM, referans piramidi",
+      "telif ihlali: baskasinin varligini yeniden satma",
+      "kimlik, banka hesabi veya odeme araciligi (IBAN kiralama vb.)",
+      "gunluk elle mudahale gerektiren hizmet isi",
+      "sahte hesap, bot trafik, platform kural ihlali"
+    ]
+  },
+
+  "puanlama": {
+    "agirliklar": {
+      "otonomi": 3.0,
+      "uygunluk": 2.5,
+      "kanit": 2.0,
+      "ilkParaHizi": 2.0,
+      "netKazanc": 2.0,
+      "maliyet": 1.5,
+      "risk": 1.5,
+      "dayaniklilik": 1.0
+    },
+    "cezalar": {
+      "kanitsizIddiaBasina": 4,
+      "kanitsizIddiaTavani": 20,
+      "olusuzLinkBasina": 6,
+      "olusuzLinkTavani": 24,
+      "kanitYok": 15,
+      "sermayeAsimi": 25,
+      "giderAsimi": 15,
+      "gunlukMudahale": 20,
+      "yavasIlkPara": 10,
+      "benzerFikir": 30
+    },
+    "esikler": {
+      "onay": 70,
+      "izleme": 50,
+      "benzerlikRed": 0.82,
+      "ilkParaGunTavani": 60
+    }
+  },
+
+  "akis": {
+    "havuzFikir": 12,
+    "arastirilacak": 5,
+    "raporaGirenMax": 3,
+    "wipLimiti": 1,
+    "runButceUSD": 1.5,
+    "runCagriTavani": 30,
+    "linkDogrula": true,
+    "linkTimeoutMs": 8000,
+    "esZamanli": 2
+  },
+
+  "llm": {
+    "saglayici": "cursor",
+    "model": "composer-2.5",
+    "denetciModel": "cursor-grok-4.5-high",
+    "temperature": 0.9,
+    "denetciTemperature": 0.1,
+    "maxTokens": 4000,
+    "cursor": {
+      "komut": null,
+      "mod": "oto",
+      "timeoutMs": 300000,
+      "ekBayraklar": ["--trust", "-f"]
+    },
+    "fiyatlar": {
+      "varsayilan": { "girdiUSDperMTok": 0.15, "ciktiUSDperMTok": 0.6 },
+      "gpt-4o": { "girdiUSDperMTok": 2.5, "ciktiUSDperMTok": 10 },
+      "gpt-4o-mini": { "girdiUSDperMTok": 0.15, "ciktiUSDperMTok": 0.6 },
+      "claude-sonnet-4-20250514": { "girdiUSDperMTok": 3, "ciktiUSDperMTok": 15 }
+    }
+  }
+}
