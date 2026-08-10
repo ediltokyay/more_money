@@ -5,9 +5,10 @@
  *   agent -p --trust -f --model <model> --output-format text [--] <prompt>
  *
  * Prompt tasima:
- *   stdin (varsayilan Windows) — prompt cocugun stdin'ine; argv kirlenmez
- *   argv  (varsayilan posix)   — prompt son arguman; `--` ile bayrak sanilmaz
- *   ps1   (Windows sarmalayici)— prompt dosyadan okunup STDIN ile verilir
+ *   ps1   (varsayilan Windows) — PowerShell sarmalayici; .cmd shim'lerini bulur,
+ *                                prompt dosyadan STDIN'e (argv kirlenmez, -14 olmaz)
+ *   stdin — prompt cocugun stdin'ine; Windows'ta shell:true ile .cmd cozulur
+ *   argv  (varsayilan posix) — prompt son arguman; `--` ile bayrak sanilmaz
  *
  * Guvenlik: cagri her zaman gecici bos bir dizinde kosar. `-f` ile komut onayi
  * otomatik verildigi icin ajan bir arac calistirmaya kalkarsa depo disinda kalir.
@@ -45,13 +46,13 @@ export function komutBul(ayar = {}) {
 }
 
 /**
- * Windows'ta varsayilan stdin: prompt argv'ye konursa PowerShell/CLI
- * icindeki "-14" gibi parcalari bayrak sanabiliyor.
+ * Windows varsayilanı ps1: npm/Cursor .cmd shim'lerini PowerShell bulur;
+ * prompt STDIN ile gider (eski argv yolu ENOENT veya unknown option '-14' verirdi).
  */
 export function modBul(ayar = {}) {
   const m = process.env.MONEY_CURSOR_MODE || ayar.mod || 'oto';
   if (m !== 'oto') return m;
-  return process.platform === 'win32' ? 'stdin' : 'argv';
+  return process.platform === 'win32' ? 'ps1' : 'argv';
 }
 
 /**
@@ -63,6 +64,8 @@ export function modBul(ayar = {}) {
 export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv', promptDosyasi = null }) {
   const { cmd, onEkArgs } = komutParcala(komut);
   const temel = [...onEkArgs, '-p', ...ekBayraklar, '--model', model, '--output-format', 'text'];
+  // Windows'ta shell:true olmadan spawn('cursor-agent') .cmd shim icin ENOENT verir.
+  const winKabuk = process.platform === 'win32';
 
   if (mod === 'ps1') {
     return {
@@ -86,9 +89,9 @@ export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv',
       kabuk: false
     };
   }
-  if (mod === 'stdin') return { cmd, args: temel, stdinMi: true, kabuk: false };
+  if (mod === 'stdin') return { cmd, args: temel, stdinMi: true, kabuk: winKabuk };
   // `--` : prompt "-14 ..." ile baslasa bile CLI onu secenek sanmaz.
-  return { cmd, args: [...temel, '--', prompt], stdinMi: false, kabuk: false };
+  return { cmd, args: [...temel, '--', prompt], stdinMi: false, kabuk: winKabuk };
 }
 
 export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, timeoutMs = 300000 }) {
@@ -114,7 +117,11 @@ export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, time
       cocuk.on('error', (e) => {
         clearTimeout(zamanlayici);
         // Binary yoksa yeniden denemenin anlami yok: kalici hata olarak isaretle.
-        red(Object.assign(new Error(`cursor cli baslatilamadi (${plan.cmd}): ${e.message}`), { kalici: true }));
+        const ek =
+          e.code === 'ENOENT'
+            ? ` — '${plan.cmd}' PATH'te yok veya Windows .cmd shim spawn edilemedi. Cursor CLI kurulu mu? CMD'de: where cursor-agent`
+            : '';
+        red(Object.assign(new Error(`cursor cli baslatilamadi (${plan.cmd}): ${e.message}${ek}`), { kalici: true }));
       });
       cocuk.on('close', (kod) => {
         clearTimeout(zamanlayici);

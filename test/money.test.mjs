@@ -279,10 +279,19 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
   assert.ok(!psPlan.args.includes('x'), 'ps1 modunda prompt komut satirinda olmamali');
 });
 
-test('modBul: windows stdin (argv kirlenmesin), digerleri argv', () => {
+test('modBul: windows ps1 (.cmd + stdin prompt), digerleri argv', () => {
   assert.equal(modBul({ mod: 'stdin' }), 'stdin');
   assert.equal(modBul({ mod: 'ps1' }), 'ps1');
-  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'stdin' : 'argv');
+  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'ps1' : 'argv');
+});
+
+test('komutKur: windows stdin/argv shell kullanir (.cmd shim)', () => {
+  const stdinPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'stdin' });
+  assert.equal(stdinPlan.kabuk, process.platform === 'win32');
+  const argvPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'argv' });
+  assert.equal(argvPlan.kabuk, process.platform === 'win32');
+  const psPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'ps1', promptDosyasi: 'p.txt' });
+  assert.equal(psPlan.kabuk, false);
 });
 
 test('eksi ile baslayan prompt stdin ile guvenle tasinir', async () => {
