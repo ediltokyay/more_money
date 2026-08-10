@@ -28,10 +28,11 @@ Rol → model eşlemesi `scripts/model-policy.ps1` sınıflandırmasıyla hizal�
 Bütçe burada dolar değil **çağrı adedi** ile tutulur (`akis.runCagriTavani`, varsayılan 30).
 Rapor da dolar yerine "çağrı: N/30 (Cursor havuzu)" yazar.
 
-Windows'ta prompt `cmd.exe`'nin tırnak ve 8191 karakter sınırına takıldığı için `agent-run.ps1`
-sarmalayıcısı devreye girer: prompt dosyadan okunup CLI'ye native argv olarak geçer — `dogrula.ps1`
-ile birebir aynı yol. Linux/macOS'ta doğrudan argv ile çağrılır. Zorlamak için `MONEY_CURSOR_MODE=argv|stdin|ps1`,
-binary adı için `MONEY_CURSOR_CMD` (varsayılan: önce `cursor-agent`, yoksa `agent`).
+Windows'ta prompt varsayılan olarak **stdin** ile verilir; böylece prompt içindeki `-14` gibi
+parçalar CLI bayrağı sanılmaz. İstersen `agent-run.ps1` sarmalayıcısı (`ps1` modu) prompt'u
+dosyadan okuyup yine stdin'e verir. Linux/macOS'ta argv kullanılır; prompt'tan önce `--`
+konur. Zorlamak için `MONEY_CURSOR_MODE=argv|stdin|ps1`, binary adı için `MONEY_CURSOR_CMD`
+(varsayılan: önce `cursor-agent`, yoksa `agent`).
 
 Her çağrı **geçici boş bir dizinde** koşar. `-f` komut onayını otomatik verdiği için ajan bir araç
 çalıştırmaya kalkarsa depo dışında kalır.
@@ -42,11 +43,16 @@ veya OpenAI-uyumlu herhangi bir uç (OpenRouter, DeepSeek, Groq) kullanılabilir
 ## Hızlı başlangıç
 
 ```bash
+npm run panel          # operatör paneli → http://127.0.0.1:8787
 npm run money:dry      # CLI/anahtar olmadan, fixture ile tam hat (hiçbir şey harcamaz)
-npm run money:test     # kapıların çalıştığını doğrular (28 test)
+npm run money:test     # kapıların çalıştığını doğrular
 npm run money          # gerçek tur — Cursor CLI ile
 npm run money:list     # defterdeki tüm fikirler
 ```
+
+**Operatör paneli** (`npm run panel`): canlı ajan akışını izle, defteri gör, raporu oku,
+kopyala veya `.md` olarak indir. Varsayılan yalnızca localhost — gerçek tur başlatabildiği için
+dışarı açma.
 
 Örnek çıktı: [`reports/ornek-rapor.md`](reports/ornek-rapor.md) (kuru çalışmayla üretildi).
 
@@ -160,8 +166,10 @@ görev olarak verilebilir.
 | Dosya | Sorumluluk |
 |---|---|
 | `run.mjs` | CLI, durum komutları |
+| `panel.mjs` | Operatör paneli (canlı akış, rapor, indirme) |
+| `panel/` | Panel arayüzü (HTML/CSS/JS) |
 | `config.json` | Operatör profili, ağırlıklar, cezalar, eşikler, akış limitleri, model seçimi |
-| `agent-run.ps1` | Windows Cursor CLI sarmalayıcısı (prompt dosyadan) |
+| `agent-run.ps1` | Windows Cursor CLI sarmalayıcısı (prompt dosyadan → stdin) |
 | `src/pipeline.mjs` | Turun orkestrası, ön eleme, eşzamanlılık |
 | `src/prompts.mjs` | Üç rolün promptları (anti-şablon kuralları burada) |
 | `src/agents.mjs` | Rol sarmalayıcıları + çıktı şeması doğrulaması |
@@ -174,4 +182,4 @@ görev olarak verilebilir.
 | `data/ledger.json` | Fikir hafızası (commit edilir) |
 | `reports/` | Tur raporları (kuru çalışma çıktıları gitignore) |
 
-Bağımlılık yok: Node 18+ yeterli, `node --test` ile 28 test (sahte CLI binary'si dahil).
+Bağımlılık yok: Node 18+ yeterli, `node --test` ile testler (sahte CLI binary'si + panel API dahil).

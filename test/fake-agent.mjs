@@ -6,11 +6,23 @@
  */
 const argv = process.argv.slice(2);
 const model = argv[argv.indexOf('--model') + 1] || null;
-const promptArgv = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--model' && argv[i - 1] !== '--output-format');
+const tireTire = argv.indexOf('--');
+const promptArgv =
+  tireTire >= 0
+    ? argv.slice(tireTire + 1)
+    : argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--model' && argv[i - 1] !== '--output-format');
 
 function yaz(mod, prompt) {
   process.stdout.write(
-    'Calisiyor...\n' + JSON.stringify({ ok: true, model, mod, promptUzunluk: prompt.length, bayraklar: argv.filter((a) => a.startsWith('-')) }) + '\n'
+    'Calisiyor...\n' +
+      JSON.stringify({
+        ok: true,
+        model,
+        mod,
+        promptUzunluk: prompt.length,
+        bayraklar: argv.filter((a) => a.startsWith('-') && a !== '--')
+      }) +
+      '\n'
   );
 }
 

@@ -8,9 +8,10 @@
     "money": "node run.mjs",
     "money:dry": "node run.mjs --dry-run",
     "money:list": "node run.mjs --liste",
-    "money:test": "node --test test/money.test.mjs",
-    "test": "node --test test/money.test.mjs",
-    "start": "node run.mjs"
+    "money:test": "node --test test/money.test.mjs test/panel.test.mjs",
+    "test": "node --test test/money.test.mjs test/panel.test.mjs",
+    "panel": "node panel.mjs",
+    "start": "node panel.mjs"
   },
   "engines": {
     "node": ">=18"

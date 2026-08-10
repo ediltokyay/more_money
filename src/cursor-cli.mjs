@@ -1,12 +1,13 @@
 /**
  * Cursor CLI saglayicisi — API faturasi yerine Cursor uyeligindeki havuzu kullanir.
  *
- * Cagri sekli deponun calisan yolundan alindi (scripts/dogrula.ps1):
- *   agent -p --trust -f --model <model> --output-format text <prompt>
+ * Cagri sekli:
+ *   agent -p --trust -f --model <model> --output-format text [--] <prompt>
  *
- * Windows'ta prompt argv'de cmd.exe tirnak/uzunluk sinirina takildigi icin
- * PowerShell sarmalayici (agent-run.ps1) kullanilir: prompt dosyadan okunur,
- * CLI'ye native argv olarak gecer — dogrula.ps1 ile birebir ayni yol.
+ * Prompt tasima:
+ *   stdin (varsayilan Windows) — prompt cocugun stdin'ine; argv kirlenmez
+ *   argv  (varsayilan posix)   — prompt son arguman; `--` ile bayrak sanilmaz
+ *   ps1   (Windows sarmalayici)— prompt dosyadan okunup STDIN ile verilir
  *
  * Guvenlik: cagri her zaman gecici bos bir dizinde kosar. `-f` ile komut onayi
  * otomatik verildigi icin ajan bir arac calistirmaya kalkarsa depo disinda kalir.
@@ -43,17 +44,21 @@ export function komutBul(ayar = {}) {
   return 'agent';
 }
 
+/**
+ * Windows'ta varsayilan stdin: prompt argv'ye konursa PowerShell/CLI
+ * icindeki "-14" gibi parcalari bayrak sanabiliyor.
+ */
 export function modBul(ayar = {}) {
   const m = process.env.MONEY_CURSOR_MODE || ayar.mod || 'oto';
   if (m !== 'oto') return m;
-  return process.platform === 'win32' ? 'ps1' : 'argv';
+  return process.platform === 'win32' ? 'stdin' : 'argv';
 }
 
 /**
  * Calistirilacak komutu kurar. Saf fonksiyon: test edilebilir, yan etkisi yok.
- * mod=argv  -> prompt argv'de (posix)
+ * mod=argv  -> prompt argv'de (`--` sonrasi; posix)
  * mod=stdin -> prompt cocugun stdin'ine yazilir
- * mod=ps1   -> powershell sarmalayici, prompt dosyadan (windows)
+ * mod=ps1   -> powershell sarmalayici, prompt dosyadan STDIN ile
  */
 export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv', promptDosyasi = null }) {
   const { cmd, onEkArgs } = komutParcala(komut);
@@ -82,7 +87,8 @@ export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv',
     };
   }
   if (mod === 'stdin') return { cmd, args: temel, stdinMi: true, kabuk: false };
-  return { cmd, args: [...temel, prompt], stdinMi: false, kabuk: false };
+  // `--` : prompt "-14 ..." ile baslasa bile CLI onu secenek sanmaz.
+  return { cmd, args: [...temel, '--', prompt], stdinMi: false, kabuk: false };
 }
 
 export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, timeoutMs = 300000 }) {

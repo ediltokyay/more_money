@@ -262,8 +262,12 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
 
   const argvPlan = komutKur({ komut: 'agent', model: 'composer-2.5', prompt: 'selam', ekBayraklar: ['--trust', '-f'], mod: 'argv' });
   assert.equal(argvPlan.cmd, 'agent');
-  assert.deepEqual(argvPlan.args, ['-p', '--trust', '-f', '--model', 'composer-2.5', '--output-format', 'text', 'selam']);
+  assert.deepEqual(argvPlan.args, ['-p', '--trust', '-f', '--model', 'composer-2.5', '--output-format', 'text', '--', 'selam']);
   assert.equal(argvPlan.stdinMi, false);
+
+  const dashPlan = komutKur({ komut: 'agent', model: 'm', prompt: '-14 dB stem', ekBayraklar: ['--trust', '-f'], mod: 'argv' });
+  assert.ok(dashPlan.args.includes('--'));
+  assert.equal(dashPlan.args.at(-1), '-14 dB stem', 'eksi ile baslayan prompt bayrak olmamali');
 
   const stdinPlan = komutKur({ komut: 'agent', model: 'm', prompt: 'uzun', mod: 'stdin' });
   assert.equal(stdinPlan.stdinMi, true);
@@ -275,9 +279,23 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
   assert.ok(!psPlan.args.includes('x'), 'ps1 modunda prompt komut satirinda olmamali');
 });
 
-test('modBul: windows ps1, digerleri argv', () => {
+test('modBul: windows stdin (argv kirlenmesin), digerleri argv', () => {
   assert.equal(modBul({ mod: 'stdin' }), 'stdin');
-  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'ps1' : 'argv');
+  assert.equal(modBul({ mod: 'ps1' }), 'ps1');
+  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'stdin' : 'argv');
+});
+
+test('eksi ile baslayan prompt stdin ile guvenle tasinir', async () => {
+  const c = cursorCfg({ mod: 'stdin' });
+  const llm = createLLM(c, { log: () => {} });
+  const v = await llm.json({
+    etiket: 'test',
+    system: 'S',
+    user: 'olcum: -14 dB stem paketi',
+    model: 'composer-2.5'
+  });
+  assert.equal(v.ok, true);
+  assert.equal(v.mod, 'stdin');
 });
 
 test('cursor saglayicisi: CLI cagrilir, model gecer, dolar yazilmaz', async () => {
