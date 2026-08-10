@@ -311,19 +311,32 @@ test('komutKur: windows stdin/argv shell kullanir (.cmd shim)', () => {
 });
 
 test('cmdShimCozumle: .cmd icinden js yolunu cikarir', async () => {
-  const { cmdShimCozumle } = await import('../src/win-cmd-shim.mjs');
+  const { cmdShimCozumle, dizinTara, cliHataMetni } = await import('../src/win-cmd-shim.mjs');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'money-shim-'));
   const cmdPath = path.join(tmp, 'cursor-agent.cmd');
   const jsName = 'index.js';
   fs.writeFileSync(path.join(tmp, jsName), 'console.log(1)');
-  fs.writeFileSync(cmdPath, `@echo off\r\n"%~dp0${jsName}" %*\r\n`);
-  // Quoting pattern with .js in quotes as "%~dp0index.js"
   fs.writeFileSync(cmdPath, `@echo off\r\nnode "%~dp0${jsName}" %*\r\n`);
   const plan = cmdShimCozumle(cmdPath, { nodeExe: '/usr/bin/node' });
   assert.equal(plan.shell, false);
   assert.equal(plan.cmd, '/usr/bin/node');
   assert.equal(plan.baseArgs[0], path.join(tmp, jsName));
+
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'money-shim2-'));
+  const versions = path.join(tmp2, 'versions', '1.2.3');
+  fs.mkdirSync(versions, { recursive: true });
+  fs.writeFileSync(path.join(versions, 'index.js'), 'console.log(1)');
+  fs.writeFileSync(path.join(tmp2, 'cursor-agent.cmd'), '@echo off\r\nREM obfuscated launcher\r\n');
+  const plan2 = cmdShimCozumle(path.join(tmp2, 'cursor-agent.cmd'), { nodeExe: '/usr/bin/node' });
+  assert.equal(plan2.shell, false);
+  assert.ok(String(plan2.baseArgs[0]).includes(`versions${path.sep}1.2.3`));
+
+  assert.ok(!cliHataMetni('DEP0190 DeprecationWarning: shell\nasıl hata: model yok').includes('DEP0190'));
+  assert.match(cliHataMetni('DEP0190 x\nasıl hata: model yok'), /asıl hata/);
+
+  assert.ok(dizinTara(tmp2, { nodeExe: '/usr/bin/node' }));
   fs.rmSync(tmp, { recursive: true, force: true });
+  fs.rmSync(tmp2, { recursive: true, force: true });
 });
 
 test('eksi ile baslayan prompt stdin ile guvenle tasinir', async () => {

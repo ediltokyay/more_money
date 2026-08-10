@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cliHataMetni } from './win-cmd-shim.mjs';
 
 const BURASI = path.dirname(fileURLToPath(import.meta.url));
 export const PS1_YOLU = path.join(BURASI, '..', 'agent-run.ps1');
@@ -129,7 +130,7 @@ export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, time
       });
       cocuk.on('close', (kod) => {
         clearTimeout(zamanlayici);
-        if (kod !== 0) return red(new Error(`cursor cli exit ${kod}: ${hata.slice(0, 300) || cikti.slice(0, 300)}`));
+        if (kod !== 0) return red(new Error(`cursor cli exit ${kod}: ${cliHataMetni(hata, cikti)}`));
         cozum({
           metin: cikti,
           girdiTok: Math.ceil(prompt.length / 4),

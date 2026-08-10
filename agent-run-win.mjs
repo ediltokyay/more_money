@@ -2,20 +2,15 @@
 /**
  * Windows Cursor CLI kosucusu.
  *
- * Neden var:
- * - spawn('cursor-agent') .cmd shim'de ENOENT verir
- * - Prompt'u stdin'e vermek gercek CLI'de asili kalabiliyor (prompt argv bekliyor)
- * - PowerShell 5.1 native argv'yi boslukta bolup "-14" bayrak sanabiliyor
+ * - .cmd shim'i gercek node/exe'ye cozer (shell:true + 8191 limiti olmesin)
+ * - Uzun prompt'lari stdin ile verir (denetci dosyalari argv'ye sigmaz)
+ * - Kisa prompt'lari `--` sonrasi tek argv olarak verir
  *
- * `where` ile .cmd yolunu bulur, mumkunse arkasindaki node/exe'ye iner,
- * prompt'u tek argv olarak `--` sonrasinda verir.
- *
- * Kullanim:
  *   node agent-run-win.mjs <komut> <model> <promptDosyasi> [--trust -f ...]
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import { whereExe, cmdShimCozumle } from './src/win-cmd-shim.mjs';
+import { whereExe, cmdShimCozumle, WIN_ARGV_ESIK } from './src/win-cmd-shim.mjs';
 
 const [komutAd, model, promptDosya, ...ekBayraklar] = process.argv.slice(2);
 if (!komutAd || !model || !promptDosya) {
@@ -34,16 +29,34 @@ const plan =
     ? cmdShimCozumle(cmdPath)
     : { cmd: cmdPath, baseArgs: [], shell: false };
 
-const args = [...plan.baseArgs, '-p', ...ekBayraklar, '--model', model, '--output-format', 'text', '--', prompt];
+if (plan.cozulemedi || plan.shell) {
+  console.error(
+    `Uyari: '${komutAd}' shim'i cozulemedi (${cmdPath}). ` +
+      'stdin ile denenecek; kalici cozum icin: type "%LOCALAPPDATA%\\cursor-agent\\cursor-agent.cmd"'
+  );
+}
+
+// shell:true iken ASLA uzun prompt argv'ye konmaz (cmd 8191).
+const argvIle = !plan.shell && prompt.length <= WIN_ARGV_ESIK;
+const args = argvIle
+  ? [...plan.baseArgs, '-p', ...ekBayraklar, '--model', model, '--output-format', 'text', '--', prompt]
+  : [...plan.baseArgs, '-p', ...ekBayraklar, '--model', model, '--output-format', 'text'];
 
 const cocuk = spawn(plan.cmd, args, {
-  shell: plan.shell,
+  shell: Boolean(plan.shell),
   windowsHide: true,
-  stdio: ['ignore', 'inherit', 'inherit']
+  stdio: argvIle ? ['ignore', 'inherit', 'inherit'] : ['pipe', 'inherit', 'inherit']
 });
 
 cocuk.on('error', (e) => {
   console.error(`cursor cli baslatilamadi (${plan.cmd}): ${e.message}`);
   process.exit(1);
 });
+
+if (!argvIle) {
+  cocuk.stdin.on('error', () => {});
+  cocuk.stdin.write(prompt);
+  cocuk.stdin.end();
+}
+
 cocuk.on('close', (kod) => process.exit(kod ?? 1));
