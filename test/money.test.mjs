@@ -279,10 +279,26 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
   assert.ok(!psPlan.args.includes('x'), 'ps1 modunda prompt komut satirinda olmamali');
 });
 
-test('modBul: windows ps1 (.cmd + stdin prompt), digerleri argv', () => {
+test('modBul: windows win kosucu, digerleri argv', () => {
   assert.equal(modBul({ mod: 'stdin' }), 'stdin');
   assert.equal(modBul({ mod: 'ps1' }), 'ps1');
-  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'ps1' : 'argv');
+  assert.equal(modBul({ mod: 'win' }), 'win');
+  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'win' : 'argv');
+});
+
+test('komutKur: win modu node agent-run-win.mjs cagirir', () => {
+  const winPlan = komutKur({
+    komut: 'cursor-agent',
+    model: 'composer-2.5',
+    prompt: '-14 dB',
+    mod: 'win',
+    promptDosyasi: 'C:\\tmp\\p.txt',
+    ekBayraklar: ['--trust', '-f']
+  });
+  assert.equal(winPlan.cmd, process.execPath);
+  assert.ok(String(winPlan.args[0]).endsWith('agent-run-win.mjs'));
+  assert.deepEqual(winPlan.args.slice(1), ['cursor-agent', 'composer-2.5', 'C:\\tmp\\p.txt', '--trust', '-f']);
+  assert.equal(winPlan.stdinMi, false);
 });
 
 test('komutKur: windows stdin/argv shell kullanir (.cmd shim)', () => {
@@ -292,6 +308,22 @@ test('komutKur: windows stdin/argv shell kullanir (.cmd shim)', () => {
   assert.equal(argvPlan.kabuk, process.platform === 'win32');
   const psPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'ps1', promptDosyasi: 'p.txt' });
   assert.equal(psPlan.kabuk, false);
+});
+
+test('cmdShimCozumle: .cmd icinden js yolunu cikarir', async () => {
+  const { cmdShimCozumle } = await import('../src/win-cmd-shim.mjs');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'money-shim-'));
+  const cmdPath = path.join(tmp, 'cursor-agent.cmd');
+  const jsName = 'index.js';
+  fs.writeFileSync(path.join(tmp, jsName), 'console.log(1)');
+  fs.writeFileSync(cmdPath, `@echo off\r\n"%~dp0${jsName}" %*\r\n`);
+  // Quoting pattern with .js in quotes as "%~dp0index.js"
+  fs.writeFileSync(cmdPath, `@echo off\r\nnode "%~dp0${jsName}" %*\r\n`);
+  const plan = cmdShimCozumle(cmdPath, { nodeExe: '/usr/bin/node' });
+  assert.equal(plan.shell, false);
+  assert.equal(plan.cmd, '/usr/bin/node');
+  assert.equal(plan.baseArgs[0], path.join(tmp, jsName));
+  fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 test('eksi ile baslayan prompt stdin ile guvenle tasinir', async () => {

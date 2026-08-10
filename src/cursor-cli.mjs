@@ -5,10 +5,10 @@
  *   agent -p --trust -f --model <model> --output-format text [--] <prompt>
  *
  * Prompt tasima:
- *   ps1   (varsayilan Windows) — PowerShell sarmalayici; .cmd shim'lerini bulur,
- *                                prompt dosyadan STDIN'e (argv kirlenmez, -14 olmaz)
- *   stdin — prompt cocugun stdin'ine; Windows'ta shell:true ile .cmd cozulur
- *   argv  (varsayilan posix) — prompt son arguman; `--` ile bayrak sanilmaz
+ *   win  (varsayilan Windows) — agent-run-win.mjs; .cmd shim cozulur, prompt tek argv
+ *   ps1  — PowerShell sarmalayici (yedek)
+ *   stdin — prompt cocugun stdin'ine
+ *   argv (varsayilan posix) — prompt son arguman; `--` ile bayrak sanilmaz
  *
  * Guvenlik: cagri her zaman gecici bos bir dizinde kosar. `-f` ile komut onayi
  * otomatik verildigi icin ajan bir arac calistirmaya kalkarsa depo disinda kalir.
@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 const BURASI = path.dirname(fileURLToPath(import.meta.url));
 export const PS1_YOLU = path.join(BURASI, '..', 'agent-run.ps1');
+export const WIN_YOLU = path.join(BURASI, '..', 'agent-run-win.mjs');
 
 /** "agent" ya da "node fake.mjs" gibi bosluklu komutlari parcalar. */
 export function komutParcala(komut) {
@@ -46,30 +47,35 @@ export function komutBul(ayar = {}) {
 }
 
 /**
- * Windows varsayilanı ps1: npm/Cursor .cmd shim'lerini PowerShell bulur;
- * prompt STDIN ile gider (eski argv yolu ENOENT veya unknown option '-14' verirdi).
+ * Windows varsayilanı win: Node kosucu .cmd'yi cozer, prompt'u argv/`--` ile verir.
+ * stdin gercek cursor-agent'ta asili kalabiliyor; PS 5.1 argv bolmesi -14 uretebiliyor.
  */
 export function modBul(ayar = {}) {
   const m = process.env.MONEY_CURSOR_MODE || ayar.mod || 'oto';
   if (m !== 'oto') return m;
-  return process.platform === 'win32' ? 'ps1' : 'argv';
+  return process.platform === 'win32' ? 'win' : 'argv';
 }
 
 /**
  * Calistirilacak komutu kurar. Saf fonksiyon: test edilebilir, yan etkisi yok.
- * mod=argv  -> prompt argv'de (`--` sonrasi; posix)
- * mod=stdin -> prompt cocugun stdin'ine yazilir
- * mod=ps1   -> powershell sarmalayici, prompt dosyadan STDIN ile
  */
 export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv', promptDosyasi = null }) {
   const { cmd, onEkArgs } = komutParcala(komut);
   const temel = [...onEkArgs, '-p', ...ekBayraklar, '--model', model, '--output-format', 'text'];
-  // Windows'ta shell:true olmadan spawn('cursor-agent') .cmd shim icin ENOENT verir.
   const winKabuk = process.platform === 'win32';
+
+  if (mod === 'win') {
+    return {
+      cmd: process.execPath,
+      args: [WIN_YOLU, cmd, model, promptDosyasi, ...ekBayraklar],
+      stdinMi: false,
+      kabuk: false
+    };
+  }
 
   if (mod === 'ps1') {
     return {
-      cmd: 'powershell.exe',
+      cmd: komutVarMi('pwsh') ? 'pwsh' : 'powershell.exe',
       args: [
         '-NoProfile',
         '-ExecutionPolicy',
@@ -90,14 +96,13 @@ export function komutKur({ komut, model, prompt, ekBayraklar = [], mod = 'argv',
     };
   }
   if (mod === 'stdin') return { cmd, args: temel, stdinMi: true, kabuk: winKabuk };
-  // `--` : prompt "-14 ..." ile baslasa bile CLI onu secenek sanmaz.
   return { cmd, args: [...temel, '--', prompt], stdinMi: false, kabuk: winKabuk };
 }
 
 export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, timeoutMs = 300000 }) {
   const gecici = fs.mkdtempSync(path.join(os.tmpdir(), 'money-agent-'));
   const promptDosyasi = path.join(gecici, 'prompt.txt');
-  if (mod === 'ps1') fs.writeFileSync(promptDosyasi, prompt, 'utf8');
+  if (mod === 'ps1' || mod === 'win') fs.writeFileSync(promptDosyasi, prompt, 'utf8');
 
   const plan = komutKur({ komut, model, prompt, ekBayraklar, mod, promptDosyasi });
   const basla = Date.now();
@@ -116,7 +121,6 @@ export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, time
       cocuk.stderr.on('data', (d) => (hata += d));
       cocuk.on('error', (e) => {
         clearTimeout(zamanlayici);
-        // Binary yoksa yeniden denemenin anlami yok: kalici hata olarak isaretle.
         const ek =
           e.code === 'ENOENT'
             ? ` — '${plan.cmd}' PATH'te yok veya Windows .cmd shim spawn edilemedi. Cursor CLI kurulu mu? CMD'de: where cursor-agent`
@@ -126,7 +130,6 @@ export async function cursorCagir({ komut, model, prompt, ekBayraklar, mod, time
       cocuk.on('close', (kod) => {
         clearTimeout(zamanlayici);
         if (kod !== 0) return red(new Error(`cursor cli exit ${kod}: ${hata.slice(0, 300) || cikti.slice(0, 300)}`));
-        // Token sayaci yok; maliyet Cursor havuzundan dusuyor. Kabaca raporlanir.
         cozum({
           metin: cikti,
           girdiTok: Math.ceil(prompt.length / 4),

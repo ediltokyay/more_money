@@ -28,11 +28,10 @@ Rol → model eşlemesi `scripts/model-policy.ps1` sınıflandırmasıyla hizal�
 Bütçe burada dolar değil **çağrı adedi** ile tutulur (`akis.runCagriTavani`, varsayılan 30).
 Rapor da dolar yerine "çağrı: N/30 (Cursor havuzu)" yazar.
 
-Windows'ta varsayılan `ps1` sarmalayıcısıdır: PowerShell `cursor-agent.cmd` shim'ini bulur,
-prompt'u dosyadan okuyup **stdin** ile verir (eski düz spawn `ENOENT` verirdi; argv yolu da
-`-14` gibi parçaları bayrak sanabilirdi). Linux/macOS'ta argv + `--` kullanılır. Zorlamak için
-`MONEY_CURSOR_MODE=argv|stdin|ps1`, binary adı için `MONEY_CURSOR_CMD` (varsayılan: önce
-`cursor-agent`, yoksa `agent`).
+Windows'ta varsayılan `agent-run-win.mjs` kosucusudur: `cursor-agent.cmd` shim'inin arkasındaki
+gerçek Node script'e iner, prompt'u tek argv olarak `--` ile verir. Böylece `ENOENT`, stdin'de
+asılı kalma ve PowerShell'in `-14` bayrak sanması engellenir. Yedek: `MONEY_CURSOR_MODE=ps1`.
+Linux/macOS'ta argv + `--`. Binary: `MONEY_CURSOR_CMD` (varsayılan: `cursor-agent` / `agent`).
 
 Her çağrı **geçici boş bir dizinde** koşar. `-f` komut onayını otomatik verdiği için ajan bir araç
 çalıştırmaya kalkarsa depo dışında kalır.
@@ -170,7 +169,8 @@ görev olarak verilebilir.
 | `panel.mjs` | Operatör paneli (canlı akış, rapor, indirme) |
 | `panel/` | Panel arayüzü (HTML/CSS/JS) |
 | `config.json` | Operatör profili, ağırlıklar, cezalar, eşikler, akış limitleri, model seçimi |
-| `agent-run.ps1` | Windows Cursor CLI sarmalayıcısı (prompt dosyadan → stdin) |
+| `agent-run-win.mjs` | Windows Cursor CLI koşucusu (.cmd çözümler, prompt argv) |
+| `agent-run.ps1` | Windows yedek sarmalayıcı (PowerShell) |
 | `src/pipeline.mjs` | Turun orkestrası, ön eleme, eşzamanlılık |
 | `src/prompts.mjs` | Üç rolün promptları (anti-şablon kuralları burada) |
 | `src/agents.mjs` | Rol sarmalayıcıları + çıktı şeması doğrulaması |

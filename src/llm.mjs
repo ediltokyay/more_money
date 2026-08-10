@@ -68,6 +68,8 @@ export function createLLM(cfg, { log = () => {} } = {}) {
 
     if (saglayici === 'cursor') {
       // CLI'de system rolu yok: tek prompt olarak birlestirilir.
+      // Panelde "takildi mi?" belirsizligini azaltmak icin bekleme satiri.
+      log(`  … cursor-cli bekleniyor (${model})`);
       return cursorCagir({
         komut: cursorKomut,
         mod: cursorMod,

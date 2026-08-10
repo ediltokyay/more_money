@@ -1,6 +1,5 @@
-# Windows sarmalayici: prompt'u dosyadan okuyup Cursor CLI'ye STDIN ile verir.
-# Boylece prompt icindeki "-14" gibi parcalar CLI bayragi sanilmaz
-# (eski argv yolu: unknown option '-14'). cmd.exe 8191 siniri da asilir.
+# Windows sarmalayici (yedek): prompt dosyadan okunur, tek argv olarak `--` ile verilir.
+# Tercih edilen yol: agent-run-win.mjs (Node; PS 5.1 argv bolme sorununu da asar).
 param(
     [string]$Komut = 'agent',
     [Parameter(Mandatory = $true)][string]$Model,
@@ -11,7 +10,14 @@ param(
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path $PromptDosyasi)) { throw "Prompt dosyasi yok: $PromptDosyasi" }
 
-$bayraklar = @($EkBayraklar -split '\s+' | Where-Object { $_ })
+# PS 7.2+: native exe argumanlarini yeniden parse etme
+if (Get-Variable -Name PSNativeCommandArgumentPassing -ErrorAction SilentlyContinue) {
+    $PSNativeCommandArgumentPassing = 'Standard'
+}
 
-Get-Content $PromptDosyasi -Raw -Encoding UTF8 | & $Komut -p @bayraklar --model $Model --output-format text
+$prompt = Get-Content $PromptDosyasi -Raw -Encoding UTF8
+$bayraklar = @($EkBayraklar -split '\s+' | Where-Object { $_ })
+$argList = @('-p') + $bayraklar + @('--model', $Model, '--output-format', 'text', '--', $prompt)
+
+& $Komut @argList
 if ($LASTEXITCODE -ne 0) { throw "$Komut -p basarisiz (exit $LASTEXITCODE)" }

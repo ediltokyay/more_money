@@ -62,6 +62,7 @@ export function olaySinifla(satir) {
   if (s.startsWith('tekrar filtresi:')) return { tip: 'filtre', seviye: 'bilgi' };
   if (s.startsWith('on eleme:')) return { tip: 'oneleme', seviye: 'bilgi' };
   if (s.startsWith('  - ')) return { tip: 'sonuc', seviye: 'bilgi' };
+  if (s.startsWith('  … ') || s.startsWith('  ... ')) return { tip: 'bekliyor', seviye: 'bilgi' };
   if (s.startsWith('  ! ') || s.startsWith('! ')) return { tip: 'uyari', seviye: 'uyari' };
   if (s.startsWith('rapor:')) return { tip: 'rapor', seviye: 'bilgi' };
   if (s.startsWith('defter:')) return { tip: 'defter', seviye: 'bilgi' };
