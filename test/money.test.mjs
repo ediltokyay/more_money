@@ -262,8 +262,12 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
 
   const argvPlan = komutKur({ komut: 'agent', model: 'composer-2.5', prompt: 'selam', ekBayraklar: ['--trust', '-f'], mod: 'argv' });
   assert.equal(argvPlan.cmd, 'agent');
-  assert.deepEqual(argvPlan.args, ['-p', '--trust', '-f', '--model', 'composer-2.5', '--output-format', 'text', 'selam']);
+  assert.deepEqual(argvPlan.args, ['-p', '--trust', '-f', '--model', 'composer-2.5', '--output-format', 'text', '--', 'selam']);
   assert.equal(argvPlan.stdinMi, false);
+
+  const dashPlan = komutKur({ komut: 'agent', model: 'm', prompt: '-14 dB stem', ekBayraklar: ['--trust', '-f'], mod: 'argv' });
+  assert.ok(dashPlan.args.includes('--'));
+  assert.equal(dashPlan.args.at(-1), '-14 dB stem', 'eksi ile baslayan prompt bayrak olmamali');
 
   const stdinPlan = komutKur({ komut: 'agent', model: 'm', prompt: 'uzun', mod: 'stdin' });
   assert.equal(stdinPlan.stdinMi, true);
@@ -275,9 +279,77 @@ test('komutParcala ve komutKur argv/stdin/ps1 sekilleri', () => {
   assert.ok(!psPlan.args.includes('x'), 'ps1 modunda prompt komut satirinda olmamali');
 });
 
-test('modBul: windows ps1, digerleri argv', () => {
+test('modBul: windows win kosucu, digerleri argv', () => {
   assert.equal(modBul({ mod: 'stdin' }), 'stdin');
-  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'ps1' : 'argv');
+  assert.equal(modBul({ mod: 'ps1' }), 'ps1');
+  assert.equal(modBul({ mod: 'win' }), 'win');
+  assert.equal(modBul({ mod: 'oto' }), process.platform === 'win32' ? 'win' : 'argv');
+});
+
+test('komutKur: win modu node agent-run-win.mjs cagirir', () => {
+  const winPlan = komutKur({
+    komut: 'cursor-agent',
+    model: 'composer-2.5',
+    prompt: '-14 dB',
+    mod: 'win',
+    promptDosyasi: 'C:\\tmp\\p.txt',
+    ekBayraklar: ['--trust', '-f']
+  });
+  assert.equal(winPlan.cmd, process.execPath);
+  assert.ok(String(winPlan.args[0]).endsWith('agent-run-win.mjs'));
+  assert.deepEqual(winPlan.args.slice(1), ['cursor-agent', 'composer-2.5', 'C:\\tmp\\p.txt', '--trust', '-f']);
+  assert.equal(winPlan.stdinMi, false);
+});
+
+test('komutKur: windows stdin/argv shell kullanir (.cmd shim)', () => {
+  const stdinPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'stdin' });
+  assert.equal(stdinPlan.kabuk, process.platform === 'win32');
+  const argvPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'argv' });
+  assert.equal(argvPlan.kabuk, process.platform === 'win32');
+  const psPlan = komutKur({ komut: 'cursor-agent', model: 'm', prompt: 'x', mod: 'ps1', promptDosyasi: 'p.txt' });
+  assert.equal(psPlan.kabuk, false);
+});
+
+test('cmdShimCozumle: .cmd icinden js yolunu cikarir', async () => {
+  const { cmdShimCozumle, dizinTara, cliHataMetni } = await import('../src/win-cmd-shim.mjs');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'money-shim-'));
+  const cmdPath = path.join(tmp, 'cursor-agent.cmd');
+  const jsName = 'index.js';
+  fs.writeFileSync(path.join(tmp, jsName), 'console.log(1)');
+  fs.writeFileSync(cmdPath, `@echo off\r\nnode "%~dp0${jsName}" %*\r\n`);
+  const plan = cmdShimCozumle(cmdPath, { nodeExe: '/usr/bin/node' });
+  assert.equal(plan.shell, false);
+  assert.equal(plan.cmd, '/usr/bin/node');
+  assert.equal(plan.baseArgs[0], path.join(tmp, jsName));
+
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'money-shim2-'));
+  const versions = path.join(tmp2, 'versions', '1.2.3');
+  fs.mkdirSync(versions, { recursive: true });
+  fs.writeFileSync(path.join(versions, 'index.js'), 'console.log(1)');
+  fs.writeFileSync(path.join(tmp2, 'cursor-agent.cmd'), '@echo off\r\nREM obfuscated launcher\r\n');
+  const plan2 = cmdShimCozumle(path.join(tmp2, 'cursor-agent.cmd'), { nodeExe: '/usr/bin/node' });
+  assert.equal(plan2.shell, false);
+  assert.ok(String(plan2.baseArgs[0]).includes(`versions${path.sep}1.2.3`));
+
+  assert.ok(!cliHataMetni('DEP0190 DeprecationWarning: shell\nasıl hata: model yok').includes('DEP0190'));
+  assert.match(cliHataMetni('DEP0190 x\nasıl hata: model yok'), /asıl hata/);
+
+  assert.ok(dizinTara(tmp2, { nodeExe: '/usr/bin/node' }));
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.rmSync(tmp2, { recursive: true, force: true });
+});
+
+test('eksi ile baslayan prompt stdin ile guvenle tasinir', async () => {
+  const c = cursorCfg({ mod: 'stdin' });
+  const llm = createLLM(c, { log: () => {} });
+  const v = await llm.json({
+    etiket: 'test',
+    system: 'S',
+    user: 'olcum: -14 dB stem paketi',
+    model: 'composer-2.5'
+  });
+  assert.equal(v.ok, true);
+  assert.equal(v.mod, 'stdin');
 });
 
 test('cursor saglayicisi: CLI cagrilir, model gecer, dolar yazilmaz', async () => {

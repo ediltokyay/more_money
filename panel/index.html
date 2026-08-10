@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Para ajanları — operatör paneli</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <header class="top">
+      <div class="brand-block">
+        <p class="brand">Para ajanları</p>
+        <p class="tagline">Kâşif → Araştırmacı → Denetçi · operatör masası</p>
+      </div>
+      <div class="status-pill" id="baglanti" data-state="kopuk">bağlantı yok</div>
+    </header>
+
+    <main class="desk">
+      <section class="col control" aria-label="Kontroller">
+        <h2>Tur</h2>
+        <p class="hint">Canlı akışı solda izle, raporu sağda oku ve indir.</p>
+        <div class="actions">
+          <button type="button" class="btn primary" id="btn-kuru">Kuru tur</button>
+          <button type="button" class="btn danger" id="btn-gercek">Gerçek tur</button>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="force-new" />
+          WIP kilidini aç (--force-new)
+        </label>
+        <div class="run-card" id="run-card">
+          <div class="muted">Henüz tur yok</div>
+        </div>
+        <div class="pipeline" aria-hidden="true">
+          <span>Kâşif</span><i></i><span>Ön eleme</span><i></i><span>Araştırma</span><i></i><span>Denetçi</span><i></i><span>Rapor</span>
+        </div>
+      </section>
+
+      <section class="col feed" aria-label="Canlı işlemler">
+        <div class="col-head">
+          <h2>Canlı işlemler</h2>
+          <button type="button" class="btn ghost" id="btn-temizle">Temizle</button>
+        </div>
+        <ol class="events" id="events"></ol>
+      </section>
+
+      <section class="col reports" aria-label="Raporlar">
+        <div class="col-head">
+          <h2>Raporlar</h2>
+          <button type="button" class="btn ghost" id="btn-yenile">Yenile</button>
+        </div>
+        <ul class="report-list" id="report-list"></ul>
+        <div class="report-view">
+          <div class="report-toolbar">
+            <strong id="report-title">Rapor seç</strong>
+            <div class="toolbar-actions">
+              <button type="button" class="btn ghost" id="btn-kopyala" disabled>Kopyala</button>
+              <a class="btn primary" id="btn-indir" href="#" download aria-disabled="true">İndir .md</a>
+            </div>
+          </div>
+          <pre id="report-body" class="report-body">Bir rapor seç — başka bir AI ile tartışmak için indir veya kopyala.</pre>
+        </div>
+      </section>
+
+      <section class="col ledger" aria-label="Defter">
+        <div class="col-head">
+          <h2>Defter</h2>
+          <div class="seg">
+            <button type="button" class="seg-btn active" data-ledger="gercek">Gerçek</button>
+            <button type="button" class="seg-btn" data-ledger="kuru">Kuru</button>
+          </div>
+        </div>
+        <div class="ledger-table-wrap">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Skor</th>
+                <th>Durum</th>
+                <th>Fikir</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-body">
+              <tr>
+                <td colspan="3" class="muted">Yükleniyor…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
