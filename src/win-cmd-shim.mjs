@@ -28,14 +28,17 @@ export function cmdShimCozumle(cmdPath, { nodeExe = process.execPath } = {}) {
     return { cmd: cmdPath, baseArgs: [], shell: true };
   }
 
-  const js = body.match(/"%~dp0[/\\]?([^"]+\.(?:js|mjs|cjs))"/i);
+  const js =
+    body.match(/"%~dp0[/\\]?([^"]+\.(?:js|mjs|cjs))"/i) ||
+    body.match(/%~dp0[/\\]?(\S+\.(?:js|mjs|cjs))/i);
   if (js) {
     const script = path.join(dir, js[1]);
     const localNode = path.join(dir, 'node.exe');
     return { cmd: fs.existsSync(localNode) ? localNode : nodeExe, baseArgs: [script], shell: false };
   }
 
-  const exe = body.match(/"%~dp0[/\\]?([^"]+\.exe)"/i);
+  const exe =
+    body.match(/"%~dp0[/\\]?([^"]+\.exe)"/i) || body.match(/%~dp0[/\\]?(\S+\.exe)/i);
   if (exe) return { cmd: path.join(dir, exe[1]), baseArgs: [], shell: false };
 
   return { cmd: cmdPath, baseArgs: [], shell: true };
