@@ -52,7 +52,8 @@ npm run money:list     # defterdeki tüm fikirler
 
 **Operatör paneli** (`npm run panel`): canlı ajan akışını izle, defteri gör, raporu oku,
 kopyala veya `.md` olarak indir. Varsayılan yalnızca localhost — gerçek tur başlatabildiği için
-dışarı açma.
+dışarı açma. `8787` doluysa sonraki boş porta geçer; zorlamak için
+`npm run panel -- --port 8790`.
 
 Örnek çıktı: [`reports/ornek-rapor.md`](reports/ornek-rapor.md) (kuru çalışmayla üretildi).
 
